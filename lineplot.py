@@ -297,6 +297,7 @@ def pen_depth_check(image):
         g += 1
     return pen_depth_columns, banding_columns
 
+#Returns a list as a string
 def list_as_string(list):
     string = ''
     for i in range(len(list)):
@@ -307,6 +308,20 @@ def list_as_string(list):
         print(i)
     print(len(list))
     return string
+
+#Calculates the ideal with of a column so cells are wide enough to fit all of the text in
+def table_cell_widths(data, headers):
+    max_widths = []
+    for column in range(len(headers)):
+        max_width = len(headers[column]["header"])
+        for row in data:
+            if len(row[column]) > max_width:
+                max_width = len(row[column])
+        max_widths.append(max_width)
+    print(max_widths)
+    return max_widths
+
+
 
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
@@ -330,7 +345,7 @@ if not os.path.exists(savedirect):
 # print(banding_check(croppedimage))
 # print(pen_depth_check(croppedimage))
 
-#Loops over images and checks for banding and penetration depth issues, outputs results of tests as x, y, a, and b (this will be useful for outputting to excel later
+#Loops over images and checks for banding and penetration depth issues, outputs results of tests to an excel spreadsheet
 i = 0
 data = []
 
@@ -340,8 +355,9 @@ for file in os.listdir(string):
     croppedimage = cropImages(os.path.join(direct, file))
     save_image(croppedimage, file, savedirect)
     x, y = banding_check(croppedimage)
-    a, b = pen_depth_check(croppedimage)
-    print(f'large dropout at {x}, banding at {y}, pen depth defect at {a}')
+    a = pen_depth_check(croppedimage)[0]
+
+    #sets up data from current file for excel output
     tempdata = [file,
                 'Yes' if len(x) != 0 else 'No',
                 'N/A' if len(x) == 0 else f'Between columns {list_as_string(x).replace("[","(").replace("]",")")}',
@@ -354,22 +370,28 @@ for file in os.listdir(string):
     data.append(tempdata)
     i += 1
 
+#column headers for Excel
+columns = [{'header': 'Image Name'},
+           {'header': 'Element Dropout?'},
+           {'header': 'Dropout columns'},
+           {'header': 'Banding?  '},
+           {'header': 'Banding columns'},
+           {'header': 'Penetration Depth Defect?'},
+           {'header': 'Pen Depth columns'}]
+
+
 wb = xl.Workbook('Probe Defects.xlsx')
 sheet1 = wb.add_worksheet()
 sheet1.write('A1', 'This table summarises the defects found on probes analysed by lineplot.py')
 
-sheet1.add_table('B3:H' + str(i + 3), {'data': data,
-                                       'columns': [{'header': 'Image Name'},
-                                                   {'header': 'Element Dropout?'},
-                                                   {'header': 'Dropout columns'},
-                                                   {'header': 'Banding?'},
-                                                   {'header': 'Banding columns'},
-                                                   {'header': 'Penetration Depth Defect?'},
-                                                   {'header': 'Pen Depth columns'}
-                                                   ]})
+sheet1.add_table('B3:H' + str(i + 3), {'data': data,'columns': columns})
+
+for cell, width in enumerate(table_cell_widths(data, columns),1):
+    sheet1.set_column(cell, cell, width)
 
 wb.close()
 
+os.system('start "excel.exe" "Probe Defects.xlsx"')
 
 
 
