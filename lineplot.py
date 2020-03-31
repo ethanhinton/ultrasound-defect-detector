@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import statistics as st
 import xlsxwriter as xl
+import scipy.stats as stats
 
 def cropImages(imageDir):
     #read in the dicom file
@@ -216,24 +217,26 @@ def save_image(image, file, saveDirectory):
     image.save_as(os.path.join(saveDirectory,file))
 
 
-def banding_check(image):
+def defect_check(image, threshold, section_start = 0, section_end = None):
     image_pixels = image.pixel_array
-    fifth = int(image_pixels.shape[0] / 5)
-    half = int(image_pixels.shape[0] / 2)
     n = 0
     List = []
 
     #Sums the pixel values from the top half of each column and adds them to a list
     while n <= image_pixels.shape[1] - 1:
-        List.append(sum(image_pixels[fifth:half, n]))
+        List.append(sum(image_pixels[section_start:section_end, n]))
         n += 1
 
     median = st.median(List)
 
-    banding_columns = []
-    large_element_columns = []
+    banding = []
+    large_defect = []
     bad_columns = []
     g = 0
+    mean = st.mean(List)
+    std_dev = np.std(List)
+    MAD = stats.median_absolute_deviation(List)
+    COV = 100 * (std_dev / mean)
 
     for column in List:
         #Ignores the two columns at the left and right of the image as these have a lower pixel value and mess up the results
@@ -241,61 +244,25 @@ def banding_check(image):
             g += 1
             continue
         #Adds column number to a list of defective columns if it's value is significantly below median column pixel value
-        elif column < (median - (0.1 * median)):
+        elif column < (median - (threshold * median)):
             bad_columns.append(g)
         #Prints statements if the previous column was defective and this column is not defective (means end of defect in image)
         elif len(bad_columns) != 0:
             #Notes defect as large element dropout if size of defect is above 5%
             if len(bad_columns) > 0.05 * len(List):
-                print(f'There is a large element dropout defect between columns {bad_columns[0]} and {bad_columns[-1]}')
-                large_element_columns.append([bad_columns[0], bad_columns[-1]])
+                print(f'There is a-- large -element dropout defect between columns {bad_columns[0]} and {bad_columns[-1]}')
+                large_defect.append([bad_columns[0], bad_columns[-1]])
             #Otherwise just a normal banding defect
             else:
                 print(f'There is a banding defect between columns {bad_columns[0]} and {bad_columns[-1]}')
-                banding_columns.append([bad_columns[0], bad_columns[-1]])
+                banding.append([bad_columns[0], bad_columns[-1]])
             #Resets list of defective columns so size of next defect can be found
             bad_columns = []
         g += 1
 
-    #Test plots and image prints (will eventually get rid of these when code works well)
-    print(List)
-    # plt.plot(List[1:-1])
-    # plt.show()
-    # plt.imshow(image_pixels, cmap='gray')
-    # plt.show()
-    return large_element_columns, banding_columns
 
-def pen_depth_check(image):
-    image_pixels = image.pixel_array
-    half = int(image_pixels.shape[0] / 2)
-    n = 0
-    List = []
-    while n <= image_pixels.shape[1] - 1:
-        List.append(sum(image_pixels[half:, n]))
-        n += 1
+    return large_defect, banding, MAD, COV
 
-    median = st.median(List)
-    bad_columns = []
-    g = 0
-    pen_depth_columns = []
-    banding_columns = []
-
-    for column in List:
-        if g == 0 or g + 1 == len(List) or g == 1:
-            g += 1
-            continue
-        elif column < median - (0.3 * median):
-            bad_columns.append(g)
-        elif len(bad_columns) != 0:
-            if len(bad_columns) > 0.05 * len(List):
-                print(f'There is a Penetration Depth defect between columns {bad_columns[0]} and {bad_columns[-1]}')
-                pen_depth_columns.append([bad_columns[0], bad_columns[-1]])
-            else:
-                print(f'Banding between columns {bad_columns[0]} and {bad_columns[-1]}')
-                banding_columns.append([bad_columns[0], bad_columns[-1]])
-            bad_columns = []
-        g += 1
-    return pen_depth_columns, banding_columns
 
 #Returns a list as a string
 def list_as_string(list):
@@ -315,11 +282,17 @@ def table_cell_widths(data, headers):
     for column in range(len(headers)):
         max_width = len(headers[column]["header"])
         for row in data:
-            if len(row[column]) > max_width:
-                max_width = len(row[column])
+            if isinstance(row[column], str) == True:
+                if len(row[column]) > max_width:
+                    max_width = len(row[column])
+            else:
+                if len(str(row[column])) > max_width:
+                    max_width = len(row[column])
         max_widths.append(max_width)
     print(max_widths)
     return max_widths
+
+
 
 
 
@@ -354,8 +327,10 @@ for file in os.listdir(string):
     print(string + '\\' + file)
     croppedimage = cropImages(os.path.join(direct, file))
     save_image(croppedimage, file, savedirect)
-    x, y = banding_check(croppedimage)
-    a = pen_depth_check(croppedimage)[0]
+    fifth = int(croppedimage.pixel_array.shape[0] / 5)
+    half = int(croppedimage.pixel_array.shape[0] / 2)
+    x, y, MAD, COV = defect_check(croppedimage, 0.1, fifth, half)
+    a = defect_check(croppedimage, 0.3, half)[0]
 
     #sets up data from current file for excel output
     tempdata = [file,
@@ -364,7 +339,9 @@ for file in os.listdir(string):
                 'Yes' if len(y) != 0 else 'No',
                 'N/A' if len(y) == 0 else f'Between columns {list_as_string(y).replace("[","(").replace("]",")")}',
                 'Yes' if len(a) != 0 else 'No',
-                'N/A' if len(a) == 0 else f'Between columns {list_as_string(a).replace("[","(").replace("]",")")}']
+                'N/A' if len(a) == 0 else f'Between columns {list_as_string(a).replace("[","(").replace("]",")")}',
+                MAD,
+                COV]
 
     data.append(tempdata)
     i += 1
@@ -376,14 +353,16 @@ columns = [{'header': 'Image Name'},
            {'header': 'Banding?  '},
            {'header': 'Banding columns'},
            {'header': 'Penetration Depth Defect?'},
-           {'header': 'Pen Depth columns'}]
+           {'header': 'Pen Depth columns'},
+           {'header': 'Median Absolute Deviation'},
+           {'header': 'Coefficiant of Variation'}]
 
 
 wb = xl.Workbook('Probe Defects.xlsx')
 sheet1 = wb.add_worksheet()
 sheet1.write('A1', 'This table summarises the defects found on probes analysed by lineplot.py')
 
-sheet1.add_table('B3:H' + str(i + 3), {'data': data,'columns': columns})
+sheet1.add_table('B3:J' + str(i + 3), {'data': data,'columns': columns})
 
 for cell, width in enumerate(table_cell_widths(data, columns),1):
     sheet1.set_column(cell, cell, width)
