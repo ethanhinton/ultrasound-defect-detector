@@ -364,8 +364,7 @@ for file in os.listdir(string):
                 'Yes' if len(y) != 0 else 'No',
                 'N/A' if len(y) == 0 else f'Between columns {list_as_string(y).replace("[","(").replace("]",")")}',
                 'Yes' if len(a) != 0 else 'No',
-                'N/A' if len(a) == 0 else f'Between columns {list_as_string(a).replace("[","(").replace("]",")")}'
-                ]
+                'N/A' if len(a) == 0 else f'Between columns {list_as_string(a).replace("[","(").replace("]",")")}']
 
     data.append(tempdata)
     i += 1
