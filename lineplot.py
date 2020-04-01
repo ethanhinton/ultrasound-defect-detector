@@ -25,7 +25,6 @@ def cropImages(imageDir):
     #convert to a black and white image
     bw = (pixels>0)
 
-
     #find connected white regions
     labels = measure.label(bw,connectivity=1)
     properties = measure.regionprops(labels)
@@ -44,7 +43,7 @@ def cropImages(imageDir):
     bboxCoord = properties[maxIndex - 1].bbox
     miny = bboxCoord[0]
 
-    if miny > int(bw.shape[0] / 3):
+    if miny > int(bw.shape[0] / 5):
         bw = bw[:miny,:]
         labels = measure.label(bw, connectivity=1)
         properties = measure.regionprops(labels)
@@ -217,27 +216,24 @@ def save_image(image, file, saveDirectory):
     image.save_as(os.path.join(saveDirectory,file))
 
 
-def defect_check(image, threshold, section_start = 0, section_end = None):
-    image_pixels = image.pixel_array
-    n = 0
+def column_totals(image, row_start = 0, row_end = None):
     List = []
-
     #Sums the pixel values from the top half of each column and adds them to a list
-    while n <= image_pixels.shape[1] - 1:
-        List.append(sum(image_pixels[section_start:section_end, n]))
-        n += 1
+    for n in range(image.shape[1]):
+        List.append(sum(image[row_start:row_end, n]))
+    return List
 
+def cov(List):
+    mean = st.mean(List)
+    std_dev = np.std(List)
+    return 100 * (std_dev / mean)
+
+def defect_check(List, threshold):
     median = st.median(List)
-
     banding = []
     large_defect = []
     bad_columns = []
     g = 0
-    mean = st.mean(List)
-    std_dev = np.std(List)
-    MAD = stats.median_absolute_deviation(List)
-    COV = 100 * (std_dev / mean)
-
     for column in List:
         #Ignores the two columns at the left and right of the image as these have a lower pixel value and mess up the results
         if g == 0 or g + 1 == len(List) or g == 1 or g + 2 == len(List):
@@ -261,7 +257,7 @@ def defect_check(image, threshold, section_start = 0, section_end = None):
         g += 1
 
 
-    return large_defect, banding, MAD, COV
+    return large_defect, banding
 
 
 #Returns a list as a string
@@ -272,8 +268,6 @@ def list_as_string(list):
             string += f'{list[i]}'
         else:
             string += f'{list[i]}, '
-        print(i)
-    print(len(list))
     return string
 
 #Calculates the ideal with of a column so cells are wide enough to fit all of the text in
@@ -289,7 +283,6 @@ def table_cell_widths(data, headers):
                 if len(str(row[column])) > max_width:
                     max_width = len(row[column])
         max_widths.append(max_width)
-    print(max_widths)
     return max_widths
 
 
@@ -299,7 +292,7 @@ def table_cell_widths(data, headers):
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
 #Directory the code looks in to find image: Change this to the folder that the images are in
-direct = Path.cwd() / 'Linear'
+direct = Path.cwd() / 'Faulty'
 
 #Used to loop and to print the loctaion of the image later on
 string = str(direct)
@@ -320,18 +313,26 @@ if not os.path.exists(savedirect):
 
 #Loops over images and checks for banding and penetration depth issues, outputs results of tests to an excel spreadsheet
 i = 0
+n = 0
 data = []
 
 for file in os.listdir(string):
-
+    n += 1
     print(string + '\\' + file)
     croppedimage = cropImages(os.path.join(direct, file))
+    croppedimage_pixels = croppedimage.pixel_array
     save_image(croppedimage, file, savedirect)
-    fifth = int(croppedimage.pixel_array.shape[0] / 5)
-    half = int(croppedimage.pixel_array.shape[0] / 2)
-    x, y, MAD, COV = defect_check(croppedimage, 0.1, fifth, half)
-    a = defect_check(croppedimage, 0.3, half)[0]
+    fifth = int(croppedimage_pixels.shape[0] / 5)
+    half = int(croppedimage_pixels.shape[0] / 2)
 
+    MAD = stats.median_absolute_deviation(column_totals(croppedimage_pixels))
+    COV = cov(column_totals(croppedimage_pixels))
+    x, y = defect_check(column_totals(croppedimage_pixels, fifth, half), 0.1)
+    a = defect_check(column_totals(croppedimage_pixels, half), 0.3)[0]
+
+    plt.gray()
+    plt.imshow(croppedimage_pixels)
+    plt.show()
     #sets up data from current file for excel output
     tempdata = [file,
                 'Yes' if len(x) != 0 else 'No',
@@ -345,7 +346,7 @@ for file in os.listdir(string):
 
     data.append(tempdata)
     i += 1
-
+print(n, ' images were procesed')
 #column headers for Excel
 columns = [{'header': 'Image Name'},
            {'header': 'Element Dropout?'},
