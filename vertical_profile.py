@@ -176,13 +176,13 @@ def minmax(val_list):
 def condense(List, factor):
     new_length = int(len(List) / factor)
     new_list = []
+    old_list = List[:]
     for i in range(new_length):
         mean = 0
         for element in range(factor):
             mean += List.pop(0) / factor
-            print(List)
         new_list.append(mean)
-    return new_list
+    return new_list, old_list
             
 
 
@@ -209,10 +209,28 @@ for i in range(-10, 10):
     else:
         for pixel in range(len(mean_values)):
             mean_values[pixel] += values[pixel]
-print(mean_values)
+
 plt.plot(mean_values)
 plt.show()
-print(minmax(mean_values[200:]))
 
-plt.plot(condense(mean_values, 10))
+condensed_list, original_list = condense(mean_values, 30)
+plt.plot(condensed_list)
+plt.show()
+condensed_list.reverse()
+
+for index, value in enumerate(condensed_list):
+    try:
+        if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
+            print(index)
+            new_index = len(original_list) - (index*30) - 1
+            original_list = original_list[:new_index]
+            break
+    except IndexError:
+        print('no cut-off point found')
+
+plt.plot(original_list)
+plt.show()
+
+croppedimage_pixels = croppedimage_pixels[:new_index, :]
+plt.imshow(croppedimage_pixels)
 plt.show()
