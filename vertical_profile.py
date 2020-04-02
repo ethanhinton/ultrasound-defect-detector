@@ -75,6 +75,13 @@ def cropImages(imageDir):
 
     croppedImage2 = croppedImage[y1:, x1:x2]
 
+    width = int(croppedImage2.shape[1] / 20)
+    mean_values = middle_values(croppedImage2, width)
+    factor_constant = 15
+    condensed_list, original_list = condense(mean_values, int(len(mean_values) / factor_constant))
+    index_cut = cutoff_index(condensed_list, original_list)
+    
+    croppedImage2 = croppedImage2[:index_cut, :]
     y2 = crop_down_to_up(croppedImage2)
 
     croppedImage2 = croppedImage2[:y2, :]
@@ -184,53 +191,44 @@ def condense(List, factor):
         new_list.append(mean)
     return new_list, old_list
             
+def middle_values(image_pixels, width):
+    middle = int(image_pixels.shape[1] / 2)
+    mean_values = []
+    for i in range(-(int(width / 2)),(int(width / 2))):
+        values = []
+        for pixel in range(image_pixels.shape[0]):
+            values.append(image_pixels[pixel, middle + i] / 20)
+        if mean_values == []:
+            mean_values = values
+        else:
+            for pixel in range(len(mean_values)):
+                mean_values[pixel] += values[pixel]
+    return mean_values
 
+def cutoff_index(condensed_list, original_list):
+    condensed_list.reverse()
+    for index, value in enumerate(condensed_list):
+        try:
+            if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
+                new_index = len(original_list) - (index*30) - 1
+                break
+        except IndexError:
+            print('no cut-off point found')
+            return None
+    return new_index
 
-path = Path.cwd() / 'Faulty'
-file = 'I68AOL80'
-dir = os.path.join(path, file)
+path = Path.cwd() / 'Linear Minor'
+string = str(path)
+print(string)
+#dir = os.path.join(path, file)
 
-croppedimage = cropImages(dir)
-croppedimage_pixels = croppedimage.pixel_array
+for file in os.listdir(string):
+    #n += 1
+    print(string + '\\' + file)
+    croppedimage = cropImages(os.path.join(path, file))
+    croppedimage_pixels = croppedimage.pixel_array
+    #save_image(croppedimage, file, savedirect)
 
-plt.gray()
-plt.imshow(croppedimage_pixels)
-plt.show()
-
-middle = int(croppedimage_pixels.shape[1] / 2)
-
-mean_values = []
-for i in range(-10, 10):
-    values = []
-    for pixel in range(croppedimage_pixels.shape[0]):
-        values.append(croppedimage_pixels[pixel, middle + i] / 20)
-    if mean_values == []:
-        mean_values = values
-    else:
-        for pixel in range(len(mean_values)):
-            mean_values[pixel] += values[pixel]
-
-plt.plot(mean_values)
-plt.show()
-
-condensed_list, original_list = condense(mean_values, 30)
-plt.plot(condensed_list)
-plt.show()
-condensed_list.reverse()
-
-for index, value in enumerate(condensed_list):
-    try:
-        if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
-            print(index)
-            new_index = len(original_list) - (index*30) - 1
-            original_list = original_list[:new_index]
-            break
-    except IndexError:
-        print('no cut-off point found')
-
-plt.plot(original_list)
-plt.show()
-
-croppedimage_pixels = croppedimage_pixels[:new_index, :]
-plt.imshow(croppedimage_pixels)
-plt.show()
+    plt.gray()
+    plt.imshow(croppedimage_pixels)
+    plt.show()
