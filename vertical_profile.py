@@ -75,23 +75,26 @@ def cropImages(imageDir):
 
     croppedImage2 = croppedImage[y1:, x1:x2]
 
+    #y2 = crop_down_to_up(croppedImage2)
+
+    #croppedImage2 = croppedImage2[:y2, :]
+
     width = int(croppedImage2.shape[1] / 20)
     mean_values = middle_values(croppedImage2, width)
     factor_constant = 15
-    condensed_list, original_list = condense(mean_values, int(len(mean_values) / factor_constant))
-    index_cut = cutoff_index(condensed_list, original_list)
+    factor = int(len(mean_values) / factor_constant)
+    condensed_list, original_list = condense(mean_values, factor)
+    index_cut = cutoff_index(condensed_list, original_list, factor)
     
     croppedImage2 = croppedImage2[:index_cut, :]
-    y2 = crop_down_to_up(croppedImage2)
 
-    croppedImage2 = croppedImage2[:y2, :]
 
 
     # save cropped images
     image.PixelData = croppedImage2.tobytes()
     # save new height and width in the header
-    image.Columns = x2 - x1
-    image.Rows = y2 - y1
+    image.Columns = croppedImage2.shape[1] # - x1
+    image.Rows = croppedImage2.shape[0] #index_cut - y1
     # save header as one channel
     image[0x28, 0x2].value = 1
     return image
@@ -189,6 +192,10 @@ def condense(List, factor):
         for element in range(factor):
             mean += List.pop(0) / factor
         new_list.append(mean)
+    print(new_list)
+    for x, y in enumerate(old_list):
+        print(x, y)
+
     return new_list, old_list
             
 def middle_values(image_pixels, width):
@@ -197,7 +204,7 @@ def middle_values(image_pixels, width):
     for i in range(-(int(width / 2)),(int(width / 2))):
         values = []
         for pixel in range(image_pixels.shape[0]):
-            values.append(image_pixels[pixel, middle + i] / 20)
+            values.append(image_pixels[pixel, middle + i] / width)
         if mean_values == []:
             mean_values = values
         else:
@@ -205,16 +212,24 @@ def middle_values(image_pixels, width):
                 mean_values[pixel] += values[pixel]
     return mean_values
 
-def cutoff_index(condensed_list, original_list):
+def cutoff_index(condensed_list, original_list, factor):
     condensed_list.reverse()
+    print(0.1 * minmax(original_list))
     for index, value in enumerate(condensed_list):
+        print(index, value)
         try:
             if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
-                new_index = len(original_list) - (index*30) - 1
+                new_index = len(original_list) - (index * factor) - 1
+                print('Im working!!')
+                print(new_index)
+                print(len(original_list))
+                print(index)
+                print(factor)
                 break
         except IndexError:
             print('no cut-off point found')
             return None
+    print(new_index)
     return new_index
 
 path = Path.cwd() / 'Linear Minor'
