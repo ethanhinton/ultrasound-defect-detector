@@ -15,7 +15,8 @@ def cropImages(imageDir):
 
     # get the pixel information
     pixels1 = image.pixel_array
-    pixels = pixels1[40:, :]
+    cutoff = int(0.08 * pixels1.shape[0])
+    pixels = pixels1[cutoff:, :]
 
     # if rgb then header tage samples per pixels will be three
     if image[0x28, 0x2].value == 3:
@@ -40,9 +41,12 @@ def cropImages(imageDir):
             maxIndex = prop.label
 
     bboxCoord = properties[maxIndex - 1].bbox
+    minx = bboxCoord[1]
     miny = bboxCoord[0]
+    maxx = bboxCoord[3]
+    maxy = bboxCoord[2]
 
-    if miny > int(bw.shape[0] / 5):
+    if miny > int(bw.shape[0] / 6):
         bw = bw[:miny, :]
         labels = measure.label(bw, connectivity=1)
         properties = measure.regionprops(labels)
@@ -59,21 +63,27 @@ def cropImages(imageDir):
 
         bboxCoord = properties[maxIndex - 1].bbox
 
-    minx = bboxCoord[1]
-    miny = bboxCoord[0]
-    maxx = bboxCoord[3]
-    maxy = bboxCoord[2]
-    # h = maxy - miny
-    # w = maxx - minx
+        minx_new = bboxCoord[1]
+        miny_new = bboxCoord[0]
+        maxx_new = bboxCoord[3]
+        maxy_new = bboxCoord[2]
 
-    croppedImage = pixels[miny:maxy, minx:maxx]
+        if maxy_new - miny_new > 0.05 * pixels.shape[0]:
+            croppedImage = pixels[miny_new:maxy_new, minx_new:maxx_new]
+        else:
+            croppedImage = pixels[miny:maxy, minx:maxx]
+    else:
+        croppedImage = pixels[miny:maxy, minx:maxx]
+
+
+
+
 
     # crop again using the lineplot function to neaten up edges of image (remove mainly black space)
-    x1 = crop_left_to_right(croppedImage)
     x2 = crop_right_to_left(croppedImage)
     y1 = crop_up_to_down(croppedImage)
 
-    croppedImage2 = croppedImage[y1:, x1:x2]
+    croppedImage2 = croppedImage[y1:,:x2]
 
     #y2 = crop_down_to_up(croppedImage2)
 
@@ -87,14 +97,15 @@ def cropImages(imageDir):
     index_cut = cutoff_index(condensed_list, original_list, factor)
     
     croppedImage2 = croppedImage2[:index_cut, :]
-
+    x1 = crop_left_to_right(croppedImage2)
+    croppedImage2 = croppedImage2[:, x1:]
 
 
     # save cropped images
     image.PixelData = croppedImage2.tobytes()
     # save new height and width in the header
-    image.Columns = croppedImage2.shape[1] # - x1
-    image.Rows = croppedImage2.shape[0] #index_cut - y1
+    image.Columns = croppedImage2.shape[1]
+    image.Rows = croppedImage2.shape[0]
     # save header as one channel
     image[0x28, 0x2].value = 1
     return image
@@ -167,7 +178,6 @@ def crop_down_to_up(image):
         if h % 4 == 0:
             if st.mean(values) >= 10:
                 h += 1
-                #print(len(values))
                 values = []
                 continue
             else:
@@ -192,10 +202,6 @@ def condense(List, factor):
         for element in range(factor):
             mean += List.pop(0) / factor
         new_list.append(mean)
-    print(new_list)
-    for x, y in enumerate(old_list):
-        print(x, y)
-
     return new_list, old_list
             
 def middle_values(image_pixels, width):
@@ -214,25 +220,17 @@ def middle_values(image_pixels, width):
 
 def cutoff_index(condensed_list, original_list, factor):
     condensed_list.reverse()
-    print(0.1 * minmax(original_list))
     for index, value in enumerate(condensed_list):
-        print(index, value)
         try:
             if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
                 new_index = len(original_list) - (index * factor) - 1
-                print('Im working!!')
-                print(new_index)
-                print(len(original_list))
-                print(index)
-                print(factor)
                 break
         except IndexError:
             print('no cut-off point found')
             return None
-    print(new_index)
     return new_index
 
-path = Path.cwd() / 'Linear Minor'
+path = Path.cwd() / 'Linear'
 string = str(path)
 print(string)
 #dir = os.path.join(path, file)
