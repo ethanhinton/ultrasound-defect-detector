@@ -230,13 +230,12 @@ def cutoff_index(condensed_list, original_list, factor):
             return None
     return new_index
 
-path = Path.cwd() / 'Linear'
+path = Path.cwd() / 'Linear All'
 string = str(path)
 print(string)
 #dir = os.path.join(path, file)
 
 for file in os.listdir(string):
-    #n += 1
     print(string + '\\' + file)
     croppedimage = cropImages(os.path.join(path, file))
     croppedimage_pixels = croppedimage.pixel_array
