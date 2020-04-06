@@ -1,0 +1,8 @@
+Image Name - Shows the filename of the image
+Element Dropout? - Prints Yes or No whether there is a continuous section of the ROI (1/5-1/2 of the reverb image) that is >+/-10% from the median pixel value of the columns. Continuous section is defined as a section of columns with total width > 5% of the image.
+Dropout/Banding/Pen Depth Columns - The columns that the defect appears between eg. (5,12) means the defect is between columns 5 and 12 on the image.
+Banding? - Prints Yes or No whether there is a section of the ROI (1/5-1/2 of the reverb image) that is >+/-10% from the median pixel value of the columns. Section is < 5% of image (otherwise noted as element dropout).
+Penetration Depth Defect? - Printes Yes or No depending on whether there is a continuous section of the ROI (bottom 1/2 of the reverb image) that is >+/-30% from the median pixel value. Continuous section is defined as a section of columns with total width > 5% of the image. 
+Median Absolute Deviation - The median absolute deviation of the columns.
+Coefficient of Variation - Defined as 100 * Standard Deviation / Mean for all column values. Shows how varied the column pixel values are from the mean column pixel value.
+Outside +/-10% of Median - Shows the percentage of columns ouside +/-10% of the median column value. Gives an indictaion of how defective the probe is.

@@ -9,115 +9,101 @@ import statistics as st
 import xlsxwriter as xl
 import scipy.stats as stats
 
+
 def cropImages(imageDir):
-    #read in the dicom file
+    # read in the dicom file
     image = pydicom.read_file(imageDir)
 
-    #get the pixel information
+    # get the pixel information
     pixels1 = image.pixel_array
-    pixels = pixels1[40:,:]
+    cutoff = int(0.08 * pixels1.shape[0])
+    pixels = pixels1[cutoff:, :]
 
-    #if rgb then header tage samples per pixels will be three
-    if image[0x28,0x2].value==3:
-        pixels = pixels[:,:,2]
+    # if rgb then header tage samples per pixels will be three
+    if image[0x28, 0x2].value == 3:
+        pixels = pixels[:, :, 2]
 
+    # convert to a black and white image
+    bw = (pixels > 0)
 
-    #convert to a black and white image
-    bw = (pixels>0)
-
-    #find connected white regions
-    labels = measure.label(bw,connectivity=1)
+    # find connected white regions
+    labels = measure.label(bw, connectivity=1)
     properties = measure.regionprops(labels)
 
-    #empty area list to add to and then find the biggest area
+    # empty area list to add to and then find the biggest area
 
     maxArea = 0
     maxIndex = 0
 
     for prop in properties:
-        #print('Label: {} >> Object size: {}'.format(prop.label, prop.area))
-        if prop.area>maxArea:
+        # print('Label: {} >> Object size: {}'.format(prop.label, prop.area))
+        if prop.area > maxArea:
             maxArea = prop.area
             maxIndex = prop.label
 
     bboxCoord = properties[maxIndex - 1].bbox
+    minx = bboxCoord[1]
     miny = bboxCoord[0]
+    maxx = bboxCoord[3]
+    maxy = bboxCoord[2]
 
-    if miny > int(bw.shape[0] / 5):
-        bw = bw[:miny,:]
+    if miny > int(bw.shape[0] / 6):
+        bw = bw[:miny, :]
         labels = measure.label(bw, connectivity=1)
         properties = measure.regionprops(labels)
         maxArea = 0
         maxIndex = 0
 
-        #loop over the connected white regions and select the largest region size
+        # loop over the connected white regions and select the largest region size
         for prop in properties:
-            if prop.area>maxArea:
+            if prop.area > maxArea:
                 maxArea = prop.area
                 maxIndex = prop.label
-        
-    #crop the original image to the bounding box of the maximum white region
 
-        bboxCoord = properties[maxIndex-1].bbox
+        # crop the original image to the bounding box of the maximum white region
 
-    minx = bboxCoord[1]
-    miny = bboxCoord[0]
-    maxx = bboxCoord[3]
-    maxy = bboxCoord[2]
-    # h = maxy - miny
-    # w = maxx - minx
+        bboxCoord = properties[maxIndex - 1].bbox
 
-    croppedImage = pixels[miny:maxy,minx:maxx]
+        minx_new = bboxCoord[1]
+        miny_new = bboxCoord[0]
+        maxx_new = bboxCoord[3]
+        maxy_new = bboxCoord[2]
 
-    middle = []
-
-    # Looks from the bottom of the image to the top to find noise below the reverb image and crop it out
-    for n in range(croppedImage.shape[0]):
-        # Creates a list with the pixel values from the middle column of the image
-        middle.append(croppedImage[n, int((croppedImage.shape[1] - 1) / 2)])
-
-    # Reverses the list so the pixel values are listed from the bottom of the image upwards
-    middle.reverse()
-
-    # Finds the first non-zero pixel value (noise)
-    index = next((i for i, x in enumerate(middle) if x != 0), None)
-    middle_cut = middle[index:]
-
-    # Finds the next value that is less than pixel value 3 (hopefully the end of noise)
-    index_final = next((i for i, x in enumerate(middle_cut) if x < 3), None)
-
-    # If there is no next value that is less than 3, index_final = None and this next step will cause a TypeError, if this happens there is no noise so pixel_cut_point is set to 0
-    try:
-        pixel_cut_point = croppedImage.shape[0] - (index + index_final + 2)
-    except TypeError:
-        pixel_cut_point = 0
-
-    # If the image is being cropped in the first 1/3rd of the image then it is probably cropping the reverb and not the noise so the initial image is assumed to have no noise
-    # Otherwise, the noise is cropped off by the code below
-    if pixel_cut_point > (1 / 3) * len(middle):
-        croppedImage = croppedImage[:pixel_cut_point, :]
-        h = pixel_cut_point
+        if maxy_new - miny_new > 0.05 * pixels.shape[0]:
+            croppedImage = pixels[miny_new:maxy_new, minx_new:maxx_new]
+        else:
+            croppedImage = pixels[miny:maxy, minx:maxx]
     else:
-        croppedImage = croppedImage
+        croppedImage = pixels[miny:maxy, minx:maxx]
 
-    #crop again using the lineplot function to neaten up edges of image (remove mainly black space)
-    x1 = crop_left_to_right(croppedImage)
+    # crop again using the lineplot function to neaten up edges of image (remove mainly black space)
     x2 = crop_right_to_left(croppedImage)
     y1 = crop_up_to_down(croppedImage)
 
-    croppedImage2 = croppedImage[y1:,x1:x2]
+    croppedImage2 = croppedImage[y1:, :x2]
 
-    y2 = crop_down_to_up(croppedImage2)
+    # y2 = crop_down_to_up(croppedImage2)
 
-    croppedImage2 = croppedImage2[:y2,:]
+    # croppedImage2 = croppedImage2[:y2, :]
 
-    #save cropped images
+    width = int(croppedImage2.shape[1] / 20)
+    mean_values = middle_values(croppedImage2, width)
+    factor_constant = 15
+    factor = int(len(mean_values) / factor_constant)
+    condensed_list, original_list = condense(mean_values, factor)
+    index_cut = cutoff_index(condensed_list, original_list, factor)
+
+    croppedImage2 = croppedImage2[:index_cut, :]
+    x1 = crop_left_to_right(croppedImage2)
+    croppedImage2 = croppedImage2[:, x1:]
+
+    # save cropped images
     image.PixelData = croppedImage2.tobytes()
-    #save new height and width in the header
-    image.Columns = x2 - x1
-    image.Rows = y2 - y1
-    #save header as one channel
-    image[0x28,0x2].value=1
+    # save new height and width in the header
+    image.Columns = croppedImage2.shape[1]
+    image.Rows = croppedImage2.shape[0]
+    # save header as one channel
+    image[0x28, 0x2].value = 1
     return image
     
 
@@ -246,7 +232,7 @@ def defect_check(List, threshold):
         elif len(bad_columns) != 0:
             #Notes defect as large element dropout if size of defect is above 5%
             if len(bad_columns) > 0.05 * len(List):
-                print(f'There is a-- large -element dropout defect between columns {bad_columns[0]} and {bad_columns[-1]}')
+                print(f'There is a large element dropout defect between columns {bad_columns[0]} and {bad_columns[-1]}')
                 large_defect.append([bad_columns[0], bad_columns[-1]])
             #Otherwise just a normal banding defect
             else:
@@ -255,7 +241,13 @@ def defect_check(List, threshold):
             #Resets list of defective columns so size of next defect can be found
             bad_columns = []
         g += 1
-
+    if len(bad_columns) != 0:
+        if len(bad_columns) > 0.05 * len(List):
+            print(f'There is a large element dropout defect between columns {bad_columns[0]} and {bad_columns[-1]}')
+            large_defect.append([bad_columns[0], bad_columns[-1]])
+        else:
+            print(f'There is a banding defect between columns {bad_columns[0]} and {bad_columns[-1]}')
+            banding.append([bad_columns[0], bad_columns[-1]])
 
     return large_defect, banding
 
@@ -285,8 +277,50 @@ def table_cell_widths(data, headers):
         max_widths.append(max_width)
     return max_widths
 
+def minmax(val_list):
+    min_val = min(val_list)
+    max_val = max(val_list)
+    return max_val - min_val
 
 
+def condense(List, factor):
+    new_length = int(len(List) / factor)
+    new_list = []
+    old_list = List[:]
+    for i in range(new_length):
+        mean = 0
+        for element in range(factor):
+            mean += List.pop(0) / factor
+        new_list.append(mean)
+    return new_list, old_list
+
+
+def middle_values(image_pixels, width):
+    middle = int(image_pixels.shape[1] / 2)
+    mean_values = []
+    for i in range(-(int(width / 2)), (int(width / 2))):
+        values = []
+        for pixel in range(image_pixels.shape[0]):
+            values.append(image_pixels[pixel, middle + i] / width)
+        if mean_values == []:
+            mean_values = values
+        else:
+            for pixel in range(len(mean_values)):
+                mean_values[pixel] += values[pixel]
+    return mean_values
+
+
+def cutoff_index(condensed_list, original_list, factor):
+    condensed_list.reverse()
+    for index, value in enumerate(condensed_list):
+        try:
+            if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
+                new_index = len(original_list) - (index * factor) - 1
+                break
+        except IndexError:
+            print('no cut-off point found')
+            return None
+    return new_index
 
 
 #------------------------------------------------PROGRAM-------------------------------------------------------------
@@ -329,7 +363,6 @@ for file in os.listdir(string):
     COV = cov(column_totals(croppedimage_pixels))
     x, y = defect_check(column_totals(croppedimage_pixels, fifth, half), 0.1)
     a = defect_check(column_totals(croppedimage_pixels, half), 0.3)[0]
-
     plt.gray()
     plt.imshow(croppedimage_pixels)
     plt.show()
