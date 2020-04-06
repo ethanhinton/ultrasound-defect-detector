@@ -322,6 +322,14 @@ def cutoff_index(condensed_list, original_list, factor):
             return None
     return new_index
 
+def outliers(List, threshold):
+    median = st.median(List)
+    n = 0
+    for element in List:
+        if element < median - (median * threshold):
+            n += 1
+    return 100 * (n / len(List))
+
 
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
@@ -363,6 +371,7 @@ for file in os.listdir(string):
     COV = cov(column_totals(croppedimage_pixels))
     x, y = defect_check(column_totals(croppedimage_pixels, fifth, half), 0.1)
     a = defect_check(column_totals(croppedimage_pixels, half), 0.3)[0]
+    percent_defective = outliers(column_totals(croppedimage_pixels, fifth, half), 0.1)
     plt.gray()
     plt.imshow(croppedimage_pixels)
     plt.show()
@@ -375,7 +384,8 @@ for file in os.listdir(string):
                 'Yes' if len(a) != 0 else 'No',
                 'N/A' if len(a) == 0 else f'Between columns {list_as_string(a).replace("[","(").replace("]",")")}',
                 MAD,
-                COV]
+                COV,
+                percent_defective]
 
     data.append(tempdata)
     i += 1
@@ -389,14 +399,15 @@ columns = [{'header': 'Image Name'},
            {'header': 'Penetration Depth Defect?'},
            {'header': 'Pen Depth columns'},
            {'header': 'Median Absolute Deviation'},
-           {'header': 'Coefficiant of Variation'}]
+           {'header': 'Coefficiant of Variation'},
+           {'header': 'Outside +/- 10% of Median'}]
 
 
 wb = xl.Workbook('Probe Defects.xlsx')
 sheet1 = wb.add_worksheet()
 sheet1.write('A1', 'This table summarises the defects found on probes analysed by lineplot.py')
 
-sheet1.add_table('B3:J' + str(i + 3), {'data': data,'columns': columns})
+sheet1.add_table('B3:K' + str(i + 3), {'data': data,'columns': columns})
 
 for cell, width in enumerate(table_cell_widths(data, columns),1):
     sheet1.set_column(cell, cell, width)
