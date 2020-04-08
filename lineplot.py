@@ -334,7 +334,7 @@ def outliers(List, threshold):
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
 #Directory the code looks in to find image: Change this to the folder that the images are in
-direct = Path.cwd() / 'Faulty'
+direct = Path.cwd() / 'Linear All'
 
 #Used to loop and to print the loctaion of the image later on
 string = str(direct)

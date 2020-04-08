@@ -89,7 +89,7 @@ def cropImages(imageDir):
 
     #croppedImage2 = croppedImage2[:y2, :]
 
-    width = int(croppedImage2.shape[1] / 20)
+    width = int(croppedImage2.shape[1] / 10)
     mean_values = middle_values(croppedImage2, width)
     factor_constant = 15
     factor = int(len(mean_values) / factor_constant)
@@ -198,10 +198,11 @@ def condense(List, factor):
     new_list = []
     old_list = List[:]
     for i in range(new_length):
-        mean = 0
+        mean = []
         for element in range(factor):
-            mean += List.pop(0) / factor
-        new_list.append(mean)
+            mean.append(List.pop(0))
+        new_list.append(st.stdev(mean) / minmax(old_list))
+    print(new_list)
     return new_list, old_list
             
 def middle_values(image_pixels, width):
@@ -219,17 +220,12 @@ def middle_values(image_pixels, width):
     return mean_values
 
 def cutoff_index(condensed_list, original_list, factor):
-    condensed_list.reverse()
     for index, value in enumerate(condensed_list):
-        try:
-            if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
-                new_index = len(original_list) - (index * factor) - 1
-                break
-        except IndexError:
-            print('no cut-off point found')
+        if value < 0.01 and original_list[index * factor] < 230:
+            new_index = index * factor
+            return new_index
+        elif index == len(condensed_list) - 1:
             return None
-    return new_index
-
 path = Path.cwd() / 'Linear All'
 string = str(path)
 print(string)
