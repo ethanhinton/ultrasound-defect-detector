@@ -86,12 +86,12 @@ def cropImages(imageDir):
 
     # croppedImage2 = croppedImage2[:y2, :]
 
-    width = int(croppedImage2.shape[1] / 20)
+    width = int(croppedImage2.shape[1] / 10)
     mean_values = middle_values(croppedImage2, width)
     factor_constant = 15
     factor = int(len(mean_values) / factor_constant)
-    condensed_list, original_list = condense(mean_values, factor)
-    index_cut = cutoff_index(condensed_list, original_list, factor)
+    standard_dev_list, mean_list = condense(mean_values, factor)
+    index_cut = cutoff_index(standard_dev_list, mean_list, factor)
 
     croppedImage2 = croppedImage2[:index_cut, :]
     x1 = crop_left_to_right(croppedImage2)
@@ -285,14 +285,17 @@ def minmax(val_list):
 
 def condense(List, factor):
     new_length = int(len(List) / factor)
-    new_list = []
+    standard_deviation = []
+    mean_list = []
     old_list = List[:]
     for i in range(new_length):
-        mean = 0
+        mean = []
         for element in range(factor):
-            mean += List.pop(0) / factor
-        new_list.append(mean)
-    return new_list, old_list
+            mean.append(List.pop(0))
+        mean_list.append(st.mean(mean))
+        standard_deviation.append(st.stdev(mean) / minmax(old_list))
+    return standard_deviation, mean_list
+
 
 
 def middle_values(image_pixels, width):
@@ -310,17 +313,14 @@ def middle_values(image_pixels, width):
     return mean_values
 
 
-def cutoff_index(condensed_list, original_list, factor):
-    condensed_list.reverse()
-    for index, value in enumerate(condensed_list):
-        try:
-            if condensed_list[index + 1] - value > 0.1 * minmax(original_list):
-                new_index = len(original_list) - (index * factor) - 1
-                break
-        except IndexError:
-            print('no cut-off point found')
+def cutoff_index(standard_dev_list, mean_list, factor):
+    for index, value in enumerate(standard_dev_list):
+        if value < 0.015 and mean_list[index] < 230:
+            new_index = index * factor
+            return new_index
+        elif index == len(standard_dev_list) - 1:
             return None
-    return new_index
+
 
 def outliers(List, threshold):
     median = st.median(List)
