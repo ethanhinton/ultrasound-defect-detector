@@ -334,24 +334,17 @@ def outliers(List, threshold):
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
 #Directory the code looks in to find image: Change this to the folder that the images are in
-direct = Path.cwd() / 'Linear All'
+direct = Path.cwd() / 'Linear New'
 
 #Used to loop and to print the loctaion of the image later on
 string = str(direct)
 
-#Filename of image: Use if testing a single image
-#file = 'I2LBHP2A'
 
 #Directory where new image is saved
 savedirect = Path.cwd() / 'Output'
 if not os.path.exists(savedirect):
     os.mkdir(savedirect)
 
-#Executed code : Use this if you are testing on a single image, make sure you have the image name set as the 'file' variable above
-# croppedimage = cropImages(os.path.join(direct, file))
-# save_image(croppedimage, file, savedirect)
-# print(banding_check(croppedimage))
-# print(pen_depth_check(croppedimage))
 
 #Loops over images and checks for banding and penetration depth issues, outputs results of tests to an excel spreadsheet
 i = 0
@@ -369,9 +362,9 @@ for file in os.listdir(string):
 
     MAD = stats.median_absolute_deviation(column_totals(croppedimage_pixels))
     COV = cov(column_totals(croppedimage_pixels))
-    x, y = defect_check(column_totals(croppedimage_pixels, fifth, half), 0.1)
+    x, y = defect_check(column_totals(croppedimage_pixels, fifth, 3*fifth), 0.05)
     a = defect_check(column_totals(croppedimage_pixels, half), 0.3)[0]
-    percent_defective = outliers(column_totals(croppedimage_pixels, fifth, half), 0.1)
+    percent_defective = outliers(column_totals(croppedimage_pixels, fifth, 3*fifth), 0.05)
     plt.gray()
     plt.imshow(croppedimage_pixels)
     plt.show()
@@ -400,7 +393,7 @@ columns = [{'header': 'Image Name'},
            {'header': 'Pen Depth columns'},
            {'header': 'Median Absolute Deviation'},
            {'header': 'Coefficiant of Variation'},
-           {'header': 'Outside +/- 10% of Median'}]
+           {'header': 'Outside +/- 5% of Median'}]
 
 
 wb = xl.Workbook('Probe Defects.xlsx')
