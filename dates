@@ -1,0 +1,37 @@
+import pydicom as pd
+from pathlib import Path
+import os
+from matplotlib import pyplot as pt
+import datetime
+
+path = Path.cwd() / 'Serious Defect'
+pathstring = str(path)
+
+# for file in os.listdir(pathstring):
+#     image = pd.read_file(os.path.join(path,file))
+#     image_pixels = image.pixel_array
+#     pt.imshow(image_pixels)
+#     pt.show()
+
+filename = 'I2LBHP2A'
+file = os.path.join(path,filename)
+ds = pd.read_file(file)
+print(ds.StudyDate)
+# year =
+# month =
+# day =
+x = datetime.datetime(2018, 6, 1)
+print(x.strftime("%x"))
+
+
+def convert_datetime(datestring):
+    year = int(datestring[:4])
+    if datestring[4] == 0:
+        month = int(datestring[5])
+    else:
+        month = int(datestring[4:6])
+    if datestring[6] == 0:
+        day = int(datestring[7])
+    else:
+        day = int(datestring[6:8])
+    return datetime.datetime(year,month,day)
