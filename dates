@@ -1,28 +1,7 @@
 import pydicom as pd
 from pathlib import Path
 import os
-from matplotlib import pyplot as pt
 import datetime
-
-path = Path.cwd() / 'Serious Defect'
-pathstring = str(path)
-
-# for file in os.listdir(pathstring):
-#     image = pd.read_file(os.path.join(path,file))
-#     image_pixels = image.pixel_array
-#     pt.imshow(image_pixels)
-#     pt.show()
-
-filename = 'I2LBHP2A'
-file = os.path.join(path,filename)
-ds = pd.read_file(file)
-print(ds.StudyDate)
-# year =
-# month =
-# day =
-x = datetime.datetime(2018, 6, 1)
-print(x.strftime("%x"))
-
 
 def convert_datetime(datestring):
     year = int(datestring[:4])
@@ -34,4 +13,37 @@ def convert_datetime(datestring):
         day = int(datestring[7])
     else:
         day = int(datestring[6:8])
-    return datetime.datetime(year,month,day)
+    return datetime.date(year,month,day)
+
+
+def within_date_check(start,end,date):
+    if start <= date <= end:
+        return True
+    else:
+        return False
+
+
+# filename = 'I2LBHP2A'
+# file = os.path.join(path,filename)
+# ds = pd.read_file(file)
+
+
+path = Path.cwd() / 'Serious Defect'
+pathstring = str(path)
+startdate = input("Start Date: ")
+enddate = input("End Date: ")
+converted_startdate = convert_datetime(startdate)
+converted_enddate = convert_datetime(enddate)
+
+for file in os.listdir(pathstring):
+    if file.endswith('.dcm'):
+        print(pathstring + '\\' + file)
+        ds = pd.read_file(os.path.join(path,file))
+
+        converted_studydate = convert_datetime(ds.StudyDate)
+
+        if within_date_check(converted_startdate,converted_enddate,converted_studydate) == True:
+            print("Between Dates!")
+        else:
+            print("Not Between Dates!")
+
