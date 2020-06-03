@@ -80,7 +80,7 @@ def cropImages(imageDir):
     x2 = crop_right_to_left(croppedImage)
     y1 = crop_up_to_down(croppedImage)
 
-    croppedImage2 = croppedImage[y1:, :x2]
+    croppedImage2 = croppedImage[y1:,:x2]
 
     # y2 = crop_down_to_up(croppedImage2)
 
@@ -118,9 +118,12 @@ def line_plot(image, column):
 
 def discard(values, percentage):
     # Returns True if the % of numbers in a list (values) that are 0 is greater than the percentage set by the user
-    if values.count(0) / len(values) >= percentage / 100:
-        return True
-    else:
+    try:
+        if values.count(0) / len(values) >= percentage / 100:
+            return True
+        else:
+            return False
+    except ValueError:
         return False
 
 
@@ -334,7 +337,7 @@ def outliers(List, threshold):
 #------------------------------------------------PROGRAM-------------------------------------------------------------
 
 #Directory the code looks in to find image: Change this to the folder that the images are in
-direct = Path.cwd() / 'Linear New'
+direct = Path.cwd() / 'Linear All'
 
 #Used to loop and to print the loctaion of the image later on
 string = str(direct)

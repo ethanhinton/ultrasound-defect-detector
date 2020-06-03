@@ -22,28 +22,31 @@ def within_date_check(start,end,date):
     else:
         return False
 
-
-# filename = 'I2LBHP2A'
-# file = os.path.join(path,filename)
-# ds = pd.read_file(file)
-
-
+#You will probably already have this in your code before your loop
 path = Path.cwd() / 'Serious Defect'
 pathstring = str(path)
+
+#user enters date boundaries in the form YYYYMMDD
+#This code goes before the loop so you don't have to enter the date boundaries for every image
 startdate = input("Start Date: ")
 enddate = input("End Date: ")
 converted_startdate = convert_datetime(startdate)
 converted_enddate = convert_datetime(enddate)
 
+
+# EXAMPLE CODE
 for file in os.listdir(pathstring):
-    if file.endswith('.dcm'):
-        print(pathstring + '\\' + file)
-        ds = pd.read_file(os.path.join(path,file))
+    #Try/Except statement needed so code isn't broken by non dicom files e.g. PNG images
+    try:
+        image = pd.read_file(os.path.join(path, file))
+        converted_studydate = convert_datetime(image.StudyDate)
 
-        converted_studydate = convert_datetime(ds.StudyDate)
-
-        if within_date_check(converted_startdate,converted_enddate,converted_studydate) == True:
+        if within_date_check(converted_startdate, converted_enddate, converted_studydate) == True:
             print("Between Dates!")
-        else:
-            print("Not Between Dates!")
+            #Put rest of code for analysing image here
+    except:
+        print('File must be a DICOM image')
+
+
+
 
