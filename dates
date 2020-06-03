@@ -1,4 +1,4 @@
-import pydicom as pd
+import pydicom
 from pathlib import Path
 import os
 import datetime
@@ -35,15 +35,22 @@ converted_enddate = convert_datetime(enddate)
 
 
 # EXAMPLE CODE
+
+#You will probably already have this in your code before your loop
+path = Path.cwd() / 'Serious Defect'
+pathstring = str(path)
+
 for file in os.listdir(pathstring):
     #Try/Except statement needed so code isn't broken by non dicom files e.g. PNG images
     try:
-        image = pd.read_file(os.path.join(path, file))
+        image = pydicom.read_file(os.path.join(path, file))
         converted_studydate = convert_datetime(image.StudyDate)
 
         if within_date_check(converted_startdate, converted_enddate, converted_studydate) == True:
             print("Between Dates!")
             #Put rest of code for analysing image here
+        else:
+            print("Not Between Dates!")
     except:
         print('File must be a DICOM image')
 
