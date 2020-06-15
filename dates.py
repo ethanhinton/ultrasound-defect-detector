@@ -22,10 +22,6 @@ def within_date_check(start,end,date):
     else:
         return False
 
-#You will probably already have this in your code before your loop
-path = Path.cwd() / 'Serious Defect'
-pathstring = str(path)
-
 #user enters date boundaries in the form YYYYMMDD
 #This code goes before the loop so you don't have to enter the date boundaries for every image
 startdate = input("Start Date: ")
@@ -35,7 +31,6 @@ converted_enddate = convert_datetime(enddate)
 
 
 # EXAMPLE CODE
-
 #You will probably already have this in your code before your loop
 path = Path.cwd() / 'Serious Defect'
 pathstring = str(path)
